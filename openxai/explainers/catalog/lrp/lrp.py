@@ -1,9 +1,9 @@
 import torch
-from ...api import Explainer
+from ...api import BaseExplainer
 from captum.attr import LRP as LRP_Captum
 
 
-class LRP(Explainer):
+class LRP(BaseExplainer):
     """
     Provides layer-wise relevance propagation explanations with respect to the input layer.
     https://arxiv.org/abs/1604.00825
@@ -16,7 +16,7 @@ class LRP(Explainer):
         """
         super(LRP, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor) -> torch.tensor:
+    def get_explanations(self, x: torch.Tensor, label=None):
         """
         Explain an instance prediction.
         Args:
@@ -27,9 +27,10 @@ class LRP(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
         
         lrp = LRP_Captum(self.model)
         
-        attribution = lrp.attribute(x, target=label)
+        attribution = lrp.attribute(x.float(), target=label)
 
         return attribution

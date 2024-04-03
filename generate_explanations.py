@@ -1,43 +1,44 @@
 # Utils
 import os
-import torch
+import time
 import numpy as np
+import warnings; warnings.filterwarnings("ignore")
+import openxai.experiment_utils as utils
 
-# ML models
+# Models, Data, and Explainers
 from openxai.model import LoadModel
-
-# Data loaders
-from openxai.dataloader import return_loaders
-
-# Explanation models
+from openxai.dataloader import ReturnTrainTestX
 from openxai.explainer import Explainer
 
-def GenerateExplanations(methods, data_name, model_name, n_test_samples=100):
-    # Get data and model
-    loader_train, loader_test = return_loaders(data_name=data_name, download=False)
-    inputs = torch.FloatTensor(loader_test.dataset.data[:n_test_samples])
-    labels = torch.LongTensor(loader_test.dataset.targets[:n_test_samples])
-    dataset_tensor = torch.FloatTensor(loader_train.dataset.data)
-    model = LoadModel(data_name, model_name, pretrained=True)
-    
-    # Compute explanations for each method
-    explanations = {method: None for method in methods}
-    for method in methods:
-        explainer = Explainer(method, model, dataset_tensor, param_dict=None)  # use default hyperparameters in openxai.explainer.py
-        explanations[method] = explainer.get_explanation(inputs, labels)
-    return explanations
-
 if __name__ == '__main__':
-    if not os.path.exists('explanations'):
-        os.makedirs('explanations')
-    methods = ['control', 'grad', 'ig', 'itg', 'sg', 'shap', 'lime']
-    data_names = ['adult', 'compas', 'gaussian', 'german', 'gmsc', 'heart', 'heloc', 'pima']
-    model_names = ['lr', 'ann']
-    n_test_samples = 1000
-    for data_name in data_names:
-        for model_name in model_names:
+    # Parameters
+    config = utils.load_config('experiment_config.json')
+    methods, n_test_samples = config['methods'], config['n_test_samples']
+    param_strs = {method: utils.construct_param_string(config['explainers'][method]) for method in methods}
+
+    # Generate explanations
+    start_time = time.time()
+    for data_name in config['data_names']:
+        for model_name in config['model_names']:
+
+            # Make directory for explanations
+            folder_name = f'explanations/{model_name}_{data_name}'
+            utils.make_directory(folder_name)
             print(f"Data: {data_name}, Model: {model_name}")
-            explanations = GenerateExplanations(methods, data_name, model_name, n_test_samples)
-            for method, explanation in explanations.items():
-                filename = f'explanations/{data_name}_{model_name}_{method}_{n_test_samples}.npy'
-                np.save(filename.format(filename), explanation.detach().numpy())
+            X_train, X_test = ReturnTrainTestX(data_name, n_test=n_test_samples, float_tensor=True)
+            model = LoadModel(data_name, model_name, pretrained=True)
+            predictions = model(X_test).argmax(dim=-1)
+
+            # Loop over explanation methods
+            for method in methods:
+                # Print and configure
+                print(f'Computing explanations for {method} (elapsed time: {time.time() - start_time:.2f}s)')
+                param_dict = utils.fill_param_dict(method, config['explainers'][method], X_train)
+
+                # Compute explanations
+                explainer = Explainer(method, model, param_dict)
+                explanations = explainer.get_explanations(X_test, predictions).detach().numpy()
+
+                # Save explanations
+                filename = f'explanations/{model_name}_{data_name}/{method}_{n_test_samples}{param_strs[method]}.npy'
+                np.save(filename.format(filename), explanations)

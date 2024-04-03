@@ -41,7 +41,7 @@ class TabularDataLoader(data.Dataset):
         :return: tensor with training data
         """
         self.data_name, self.split = filename.split('.')[0].split('-')
-        if download:
+        if download or not os.path.isfile(path + filename):
             self.mkdir_p(path)
             r = requests.get(dataverse_prefix + dataverse_ids[self.split][self.data_name], allow_redirects=True)
             df = pd.read_csv(StringIO(r.text), sep='\t')
@@ -108,7 +108,7 @@ class TabularDataLoader(data.Dataset):
                 raise 
 
 
-def return_loaders(data_name, download=False, batch_size=32, scaler='minmax'):
+def ReturnLoaders(data_name, download=False, batch_size=32, scaler='minmax'):
     """
     Load training and test datasets as DataLoader objects
     :param data_name: string with name of dataset
@@ -131,3 +131,25 @@ def return_loaders(data_name, download=False, batch_size=32, scaler='minmax'):
     testloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
     
     return trainloader, testloader
+
+def ReturnTrainTestX(data_name, n_test=None, n_train=None, download=False,
+                             float_tensor=False, return_feature_metadata=False):
+    """
+    Load training and test datasets as DataLoader objects
+    :param data_name: string with name of dataset
+    :param n_test_samples: int, number of test samples
+    :param n_train_samples: int, number of train samples
+    :param download: boolean, whether to download the dataset
+    :param float_tensor: boolean, whether to convert to FloatTensor
+    :param return_feature_metadata: boolean, whether to return feature metadata
+    :return: tuple with training and test inputs (optionally feature metadata)
+    """
+    trainloader, testloader = ReturnLoaders(data_name, download=download)
+    X_test = testloader.dataset.data[:n_test] if n_test is not None else testloader.dataset.data
+    X_train = trainloader.dataset.data[:n_train] if n_train is not None else trainloader.dataset.data
+    if float_tensor:
+        X_test = torch.FloatTensor(X_test)
+        X_train = torch.FloatTensor(X_train)
+    if return_feature_metadata:
+        return X_train, X_test, trainloader.dataset.feature_metadata
+    return X_train, X_test

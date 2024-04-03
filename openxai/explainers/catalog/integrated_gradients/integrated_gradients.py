@@ -1,9 +1,9 @@
 import torch
-from ...api import Explainer
+from ...api import BaseExplainer
 from captum.attr import IntegratedGradients as IG_Captum
 
 
-class IntegratedGradients(Explainer):
+class IntegratedGradients(BaseExplainer):
     """
     Provides integrated gradient attributions.
     Original paper: https://arxiv.org/abs/1703.01365
@@ -21,7 +21,7 @@ class IntegratedGradients(Explainer):
 
         super(IntegratedGradients, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor) -> torch.tensor:
+    def get_explanations(self, x: torch.Tensor, label=None):
         """
         Explain an instance prediction.
         Args:
@@ -32,9 +32,10 @@ class IntegratedGradients(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
 
         ig = IG_Captum(self.model, self.multiply_by_inputs)
 
-        attribution = ig.attribute(x, target=label, method=self.method, baselines=self.baseline)
+        attribution = ig.attribute(x.float(), target=label, method=self.method, baselines=self.baseline)
 
         return attribution

@@ -1,9 +1,9 @@
 import torch
 from captum.attr import Saliency as Gradient_Captum
-from ...api import Explainer
+from ...api import BaseExplainer
 
 
-class Gradient(Explainer):
+class Gradient(BaseExplainer):
     """
     A baseline approach for computing input attribution.
     It returns the gradients with respect to inputs.
@@ -19,7 +19,7 @@ class Gradient(Explainer):
 
         super(Gradient, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor) -> torch:
+    def get_explanations(self, x: torch.Tensor, label=None) -> torch:
         """
         Explain an instance prediction.
         Args:
@@ -31,9 +31,10 @@ class Gradient(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
 
         saliency = Gradient_Captum(self.model)
 
-        attribution = saliency.attribute(x, target=label, abs=self.abs)
+        attribution = saliency.attribute(x.float(), target=label, abs=self.abs)
 
         return attribution

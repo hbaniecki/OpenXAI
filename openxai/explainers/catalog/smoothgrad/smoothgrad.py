@@ -1,17 +1,18 @@
 import torch
-from ...api import Explainer
+import numpy as np
+from ...api import BaseExplainer
 from captum.attr import NoiseTunnel
 from captum.attr import Saliency
 
 
-class SmoothGrad(Explainer):
+class SmoothGrad(BaseExplainer):
     """
     Provides SmoothGrad attributions.
     Original paper: https://arxiv.org/abs/1706.03825
     Captum documentation: https://captum.ai/api/noise_tunnel.html
     """
 
-    def __init__(self, model, n_samples: int = 500, standard_deviation: float = 0.5) -> None:
+    def __init__(self, model, n_samples: int = 100, standard_deviation: float = 0.1, seed = None) -> None:
         """
         Args:
             model (torch.nn.Module): model on which to make predictions
@@ -19,10 +20,11 @@ class SmoothGrad(Explainer):
 
         self.n_samples = n_samples
         self.standard_deviation = standard_deviation
+        self.seed = seed
 
         super(SmoothGrad, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor, attr_method=Saliency) -> torch.tensor:
+    def get_explanations(self, x: torch.Tensor, label=None):
         """
         Explain an instance prediction.
         Args:
@@ -33,13 +35,18 @@ class SmoothGrad(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
 
-        noise_tunnel = NoiseTunnel(attr_method(self.model))
+        if self.seed is not None:
+            torch.manual_seed(self.seed); np.random.seed(self.seed)
 
-        attribution = noise_tunnel.attribute(x,
+        noise_tunnel = NoiseTunnel(Saliency(self.model))
+
+        attribution = noise_tunnel.attribute(x.float(),
                                              nt_type='smoothgrad',
                                              target=label,
                                              nt_samples=self.n_samples,
-                                             stdevs=self.standard_deviation)
+                                             stdevs=self.standard_deviation,
+                                             abs=False)
 
         return attribution

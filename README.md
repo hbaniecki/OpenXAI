@@ -41,10 +41,10 @@ OpenXAI provides a Dataloader class that can be used to load the aforementioned 
 For a concrete example, the code snippet below shows how to import the Dataloader class and load an existing OpenXAI dataset:
 
 ```python
-from openxai.dataloader import return_loaders
-loader_train, loader_test = return_loaders(data_name=‘german’, download=True)
+from openxai.dataloader import ReturnLoaders
+trainloader, testloader = ReturnLoaders(data_name=‘german’, download=True)
 # get an input instance from the test dataset
-inputs, labels = iter(loader_test).next()
+inputs, labels = next(iter(loader_test))
 ```
 
 ### OpenXAI Pre-trained models
@@ -64,8 +64,8 @@ All the explanation methods included in OpenXAI are readily accessible through t
 
 ```python
 from openxai import Explainer
-exp_method = Explainer(method= 'lime',model=model, dataset_tensor=inputs)
-explanations= exp_method.get_explanation(inputs, labels)
+exp_method = Explainer(method='lime', model=model)
+explanations= exp_method.get_explanations(inputs)
 ```
 
 Users can then submit a request to incorporate their custom methods into OpenXAI library by filling a form and providing the GitHub link to their code as well as a summary of their explanation method.
@@ -76,8 +76,8 @@ Benchmarking an explanation method using evaluation metrics is quite simple and 
 
 ```python
 from openxai import Evaluator
-metric_evaluator = Evaluator(input_dict, inputs, labels, model, exp_method)
-score = metric_evaluator.evaluate(metric='RIS')
+metric_evaluator = Evaluator(model, metric='PGI')
+score = metric_evaluator.evaluate(**kwargs)
 ```
 
 ### OpenXAI Metrics

@@ -1,9 +1,9 @@
 import torch
-from ...api import Explainer
+from ...api import BaseExplainer
 from torchray.attribution.excitation_backprop import excitation_backprop
 
 
-class EBP(Explainer):
+class EBP(BaseExplainer):
     """
     Provides excitation backpropagation.
     Excitation backprop paper: https://arxiv.org/abs/1608.00507
@@ -17,7 +17,7 @@ class EBP(Explainer):
         """
         super(EBP, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor):
+    def get_explanations(self, x: torch.Tensor, label=None):
         """
         Explain an instance prediction.
         Args:
@@ -28,10 +28,12 @@ class EBP(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
-        
+
+
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
         attribution = excitation_backprop(
             self.model,
-            x,
+            x.float(),
             label
         )
 

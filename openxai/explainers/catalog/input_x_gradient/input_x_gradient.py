@@ -1,9 +1,9 @@
 import torch
-from ...api import Explainer
+from ...api import BaseExplainer
 from captum.attr import InputXGradient as InputXGradient_Captum
 
 
-class InputTimesGradient(Explainer):
+class InputTimesGradient(BaseExplainer):
     """
     A baseline approach for computing the attribution.
     It multiplies input with the gradient with respect to input.
@@ -17,7 +17,7 @@ class InputTimesGradient(Explainer):
         """
         super(InputTimesGradient, self).__init__(model)
 
-    def get_explanation(self, x: torch.Tensor, label: torch.Tensor):
+    def get_explanations(self, x: torch.Tensor, label=None):
         """
         Explain an instance prediction.
         Args:
@@ -28,9 +28,10 @@ class InputTimesGradient(Explainer):
         """
         self.model.eval()
         self.model.zero_grad()
+        label = self.model(x.float()).argmax(dim=-1) if label is None else label
 
         input_x_gradient = InputXGradient_Captum(self.model)
 
-        attribution = input_x_gradient.attribute(x, target=label)
+        attribution = input_x_gradient.attribute(x.float(), target=label)
 
         return attribution
